@@ -1,0 +1,15 @@
+{application, hera,
+ [{description, "A framework for dynamic measurements."},
+  {vsn, "1.0.0"},
+  {registered, [hera_data, hera_com]},
+  {mod, {hera_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
