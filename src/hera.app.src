@@ -8,7 +8,7 @@
     stdlib
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [hera_app, hera_sup, hera_data, hera_com]},
 
   {licenses, ["Apache 2.0"]},
   {links, []}

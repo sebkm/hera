@@ -6,6 +6,9 @@
 -define(MULTICAST_ADDR, {224,0,2,15}).
 -define(MULTICAST_PORT, 62476).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% API
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link() ->
     Pid = spawn_link(fun init/0),
@@ -14,11 +17,14 @@ start_link() ->
 
 
 send(Message) ->
-    ?MODULE ! {send_message, term_to_binary(Message)}.
-
+    try ?MODULE ! {send_message, term_to_binary(Message)}
+    catch
+        error:_ -> ok
+    end,
+    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Private
+%% Internal functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init() ->
@@ -36,7 +42,7 @@ init() ->
         {reuseaddr, true},
         {add_membership, {?MULTICAST_ADDR, OwnAddr}}
     ]),
-    sender_loop(Socket).
+    loop(Socket).
 
 
 loop(Socket) ->
