@@ -1,6 +1,8 @@
+-type timestamp() :: integer() | undefined.
+
 -record(measure, {
     seq = 0 :: non_neg_integer(),
-    timestamp :: integer() | undefined,
+    timestamp :: timestamp(),
     values = [] :: [number()]
 }).
 

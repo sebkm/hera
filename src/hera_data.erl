@@ -5,13 +5,21 @@
 -include("hera.hrl").
 
 -export([start_link/0]).
--export([get/1]).
+-export([get/1, get/2, get/3]).
 -export([store/3]).
 -export([get_timestamp/0]).
 
 -export([init/1, handle_call/3, handle_cast/2]).
 
--record(data, {measure = #measure{}, timestamp, file}).
+-type measurement() :: {node(), measure(), timestamp()}.
+
+-export_type([measure/0, measurement/0]).
+
+-record(data, {
+    measure = #measure{} :: measure(),
+    timestamp :: timestamp(),
+    file :: file:io_device() | undefined
+}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API
@@ -23,10 +31,37 @@ start_link() ->
 
 -spec get(Name) -> Measurements when
     Name :: atom(),
-    Measurements :: [{node(), measure()}].
+    Measurements :: [measurement()].
 
 get(Name) ->
     gen_server:call(?MODULE, {get, Name}).
+
+
+-spec get(Name, Node) -> {ok, Measurement} | undefined when 
+    Name :: atom(),
+    Node :: node(),
+    Measurement :: measurement().
+
+get(Name, Node) -> 
+    gen_server:call(?MODULE, {get, Name, Node}).
+
+
+%% get the data from measurement identified by Name and satisfying Filter
+%% eliminate multiple candidates using CmpFun according to ordering
+%% if CmpFun(A, B) then A is selected
+-spec get(Name, Filter, CmpFun) -> Measurements when
+    Name :: atom(),
+    Filter :: fun( (M) -> boolean() ),
+    CmpFun :: fun( (M, M) -> boolean() ),
+    Measurements :: [M],
+    M :: measurement().
+
+get(Name, Filter, CmpFun) ->
+    Candidates = lists:filter(Filter, hera_data:get(Name)),
+    case lists:sort(CmpFun, Candidates) of
+        [H|_] -> H;
+        [] -> []
+    end.
 
 
 -spec store(Name, Node, Measure) -> ok when
@@ -37,6 +72,8 @@ get(Name) ->
 store(Name, Node, Measure) ->
     gen_server:cast(?MODULE, {store, Name, Node, Measure}).
 
+
+-spec get_timestamp() -> timestamp().
 
 get_timestamp() ->
   erlang:monotonic_time(millisecond).
@@ -49,8 +86,23 @@ init([]) ->
     {ok, #{}}.
 
 
-handle_call({get, Name}, _From, State) ->
-    {reply, get(Name, State), State};
+handle_call({get, Name}, _From, MapData) ->
+    MapMeasure = maps:get(Name, MapData, #{}),
+    L = maps:to_list(MapMeasure),
+    Res = [{Node, M, T} || {Node, #data{measure=M, timestamp=T}} <- L],
+    {reply, Res, MapData};
+
+handle_call({get, Name, Node}, _From, MapData) ->
+    MapMeasure = maps:get(Name, MapData, #{}),
+    Res = if
+        is_map_key(Node, MapMeasure) ->
+            #data{measure=M, timestamp=T} = maps:get(Node, MapMeasure),
+            {ok, {Node, M, T}};
+        true ->
+            undefined
+    end,
+    {reply, Res, MapData};
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -63,12 +115,6 @@ handle_cast(_Request, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Internal functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-get(Name, MapData) ->
-    MapMeasure = maps:get(Name, MapData, #{}),
-    L = maps:to_list(MapMeasure),
-    [{Node, Data#data.measure} || {Node, Data} <- L].
-
 
 store(Name, Node, Measure=#measure{seq=Seq1}, MapData) ->
     MapNode0 = maps:get(Name, MapData, #{}),

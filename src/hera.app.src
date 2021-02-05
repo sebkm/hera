@@ -7,7 +7,7 @@
    [kernel,
     stdlib
    ]},
-  {env,[]},
+  {env, [{log_data, false}]},
   {modules, [hera_app, hera_sup, hera_data, hera_com]},
 
   {licenses, ["Apache 2.0"]},
