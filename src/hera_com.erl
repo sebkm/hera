@@ -1,7 +1,9 @@
 -module(hera_com).
 
 -export([start_link/0]).
--export([send/1]).
+-export([send/2]).
+
+-include("hera.hrl").
 
 -define(MULTICAST_ADDR, {224,0,2,15}).
 -define(MULTICAST_PORT, 62476).
@@ -16,8 +18,13 @@ start_link() ->
     {ok, Pid}.
 
 
-send(Message) ->
-    try ?MODULE ! {send_message, term_to_binary(Message)}
+-spec send(Name, Measure) -> ok when
+    Name :: atom(),
+    Measure :: measure().
+
+send(Name, Measure=#measure{}) ->
+    Message = {hera_data, Name, node(), Measure},
+    try ?MODULE ! {send_packet, term_to_binary(Message)}
     catch
         error:_ -> ok
     end,
@@ -49,9 +56,14 @@ loop(Socket) ->
     receive
         {udp, _Sock, _IP, _InPortNo, Packet} ->
             Message = binary_to_term(Packet),
-            io:format("Received: ~p~n", [Message]); % TODO: send to hera_data
-        {send_message, Message} ->
-            gen_udp:send(Socket, ?MULTICAST_ADDR, ?MULTICAST_PORT, Message);
+            case Message of
+                {hera_data, Name, From, Measure} ->
+                    hera_data:store(Name, From, Measure);
+                _ ->
+                    ok
+            end;
+        {send_packet, Packet} ->
+            gen_udp:send(Socket, ?MULTICAST_ADDR, ?MULTICAST_PORT, Packet);
         _ ->
             ok
     end,
