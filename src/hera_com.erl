@@ -3,8 +3,6 @@
 -export([start_link/0]).
 -export([send/2]).
 
--include("hera.hrl").
-
 -define(MULTICAST_ADDR, {224,0,2,15}).
 -define(MULTICAST_PORT, 62476).
 
@@ -20,9 +18,9 @@ start_link() ->
 
 -spec send(Name, Measure) -> ok when
     Name :: atom(),
-    Measure :: measure().
+    Measure :: {pos_integer(), [number(), ...]}.
 
-send(Name, Measure=#measure{}) ->
+send(Name, Measure) ->
     Message = {hera_data, Name, node(), Measure},
     try ?MODULE ! {send_packet, term_to_binary(Message)}
     catch

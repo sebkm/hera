@@ -2,20 +2,20 @@
 
 -behaviour(gen_server).
 
--include("hera.hrl").
-
 -export([start_link/0]).
 -export([get/1, get/2, get/3]).
 -export([store/3]).
 -export([get_timestamp/0]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
--type measurement() :: {node(), measure(), timestamp()}.
+-type timestamp() :: integer() | undefined.
+-type measure() :: {node(), pos_integer(), timestamp(), [number(), ...]}.
 
--export_type([measure/0, measurement/0]).
+-export_type([timestamp/0, measure/0]).
 
 -record(data, {
-    measure = #measure{} :: measure(),
+    seq = 0 :: non_neg_integer(),
+    values :: [number(), ...] | undefined,
     timestamp :: timestamp(),
     file :: file:io_device() | undefined
 }).
@@ -28,32 +28,32 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
--spec get(Name) -> Measurements when
+-spec get(Name) -> Measures when
     Name :: atom(),
-    Measurements :: [measurement()].
+    Measures :: [measure()].
 
 get(Name) ->
     gen_server:call(?MODULE, {get, Name}).
 
 
--spec get(Name, Node) -> {ok, Measurement} | undefined when 
+-spec get(Name, Node) -> {ok, Measure} | undefined when 
     Name :: atom(),
     Node :: node(),
-    Measurement :: measurement().
+    Measure :: measure().
 
 get(Name, Node) -> 
     gen_server:call(?MODULE, {get, Name, Node}).
 
 
-%% get the data from measurement identified by Name and satisfying Filter
+%% get the data identified by Name and satisfying Filter
 %% eliminate multiple candidates using CmpFun according to ordering
 %% if CmpFun(A, B) then A is selected
--spec get(Name, Filter, CmpFun) -> {ok, Measurement} | undefined when
+-spec get(Name, Filter, CmpFun) -> {ok, Measure} | undefined when
     Name :: atom(),
     Filter :: fun( (M) -> boolean() ),
     CmpFun :: fun( (M, M) -> boolean() ),
-    Measurement :: M,
-    M :: measurement().
+    Measure :: M,
+    M :: measure().
 
 get(Name, Filter, CmpFun) ->
     Candidates = lists:filter(Filter, hera_data:get(Name)),
@@ -66,7 +66,7 @@ get(Name, Filter, CmpFun) ->
 -spec store(Name, Node, Measure) -> ok when
     Name :: atom(),
     Node :: node(),
-    Measure :: measure().
+    Measure :: {pos_integer(), [number(), ...]}.
 
 store(Name, Node, Measure) ->
     gen_server:cast(?MODULE, {store, Name, Node, Measure}).
@@ -88,15 +88,15 @@ init([]) ->
 handle_call({get, Name}, _From, MapData) ->
     MapMeasure = maps:get(Name, MapData, #{}),
     L = maps:to_list(MapMeasure),
-    Res = [{Node, M, T} || {Node, #data{measure=M, timestamp=T}} <- L],
+    Res = [{Node,S,T,V} || {Node, #data{seq=S,values=V,timestamp=T}} <- L],
     {reply, Res, MapData};
 
 handle_call({get, Name, Node}, _From, MapData) ->
     MapMeasure = maps:get(Name, MapData, #{}),
     Res = if
         is_map_key(Node, MapMeasure) ->
-            #data{measure=M, timestamp=T} = maps:get(Node, MapMeasure),
-            {ok, {Node, M, T}};
+            #data{seq=S,values=V,timestamp=T} = maps:get(Node, MapMeasure),
+            {ok, {Node,S,T,V}};
         true ->
             undefined
     end,
@@ -115,7 +115,7 @@ handle_cast(_Request, State) ->
 %% Internal functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-store(Name, Node, Measure=#measure{seq=Seq1}, MapData) ->
+store(Name, Node, {Seq1, Vals}, MapData) ->
     MapNode0 = maps:get(Name, MapData, #{}),
     IsLogger = application:get_env(hera, log_data, false),
     MapNode1 = if
@@ -129,9 +129,9 @@ store(Name, Node, Measure=#measure{seq=Seq1}, MapData) ->
     end,
     Data = maps:get(Node, MapNode1),
     MapNode2 = case Data of
-        #data{measure=M} when M#measure.seq < Seq1 ->
-            log_data(Data#data.file, Measure, IsLogger),
-            NewData = Data#data{measure=Measure, timestamp=get_timestamp()},
+        #data{seq=Seq0} when Seq0 < Seq1 ->
+            log_data(Data#data.file, {Seq1, Vals}, IsLogger),
+            NewData = Data#data{seq=Seq1,values=Vals,timestamp=get_timestamp()},
             maps:put(Node, NewData, MapNode1);
         _ ->
             MapNode1
@@ -149,7 +149,7 @@ open_file(Name, Node) ->
 
 log_data(_, _, false) ->
     ok;
-log_data(File, #measure{seq=Seq, timestamp=T, values=Ms}, true) ->
+log_data(File, {Seq, Ms}, true) ->
     Vals = lists:map(fun(V) -> lists:flatten(io_lib:format("~p", [V])) end, Ms),
     S = string:join(Vals, ","),
-    io:format(File, "~p,~p,~s~n", [Seq, T, S]).
+    io:format(File, "~p,~s~n", [Seq, S]).

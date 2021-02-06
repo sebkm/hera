@@ -5,8 +5,6 @@
 -export([start_link/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
--include("hera.hrl").
-
 -type measure_spec() :: #{
     name := atom(), % measure id
     iter := pos_integer() | infinity, % number of measures to perform
@@ -80,7 +78,7 @@ handle_info(timeout, State) ->
 %% return Seq or the last known seq number (S0) + 1 if S0 > Seq
 init_seq(Name, Seq) ->
     case hera_data:get(Name, node()) of
-        {ok, {_, #measure{seq=Seq0}, _}} when Seq0 > Seq ->
+        {ok, {_,Seq0, _, _}} when Seq0 > Seq ->
             Seq0+1;
         _ ->
             Seq
@@ -92,9 +90,7 @@ measure(State=#state{name=N, mod=M, mod_state=MS, seq=Seq, iter=Iter}) ->
         undefined ->
             State;
         {ok, Vals=[_|_], NewMS} ->
-            Measure = #measure{seq=Seq, timestamp=hera_data:get_timestamp(),
-                values = Vals},
-            hera_com:send(N, Measure),
+            hera_com:send(N, {Seq, Vals}),
             NewIter = case Iter of
                 infinity -> Iter;
                 _ -> Iter-1
