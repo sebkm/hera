@@ -8,7 +8,6 @@
 -export([get/1, get/2, get/3]).
 -export([store/3]).
 -export([get_timestamp/0]).
-
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -type measurement() :: {node(), measure(), timestamp()}.
@@ -49,18 +48,18 @@ get(Name, Node) ->
 %% get the data from measurement identified by Name and satisfying Filter
 %% eliminate multiple candidates using CmpFun according to ordering
 %% if CmpFun(A, B) then A is selected
--spec get(Name, Filter, CmpFun) -> Measurements when
+-spec get(Name, Filter, CmpFun) -> {ok, Measurement} | undefined when
     Name :: atom(),
     Filter :: fun( (M) -> boolean() ),
     CmpFun :: fun( (M, M) -> boolean() ),
-    Measurements :: [M],
+    Measurement :: M,
     M :: measurement().
 
 get(Name, Filter, CmpFun) ->
     Candidates = lists:filter(Filter, hera_data:get(Name)),
     case lists:sort(CmpFun, Candidates) of
-        [H|_] -> H;
-        [] -> []
+        [H|_] -> {ok, H};
+        [] -> undefined
     end.
 
 
