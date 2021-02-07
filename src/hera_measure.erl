@@ -6,7 +6,7 @@
     name := atom(), % measure id
     iter := pos_integer() | infinity, % number of measures to perform
     sync => boolean(), % must the measure must be synchronized? (default: false)
-    timeout => timeout(), % delay between two measures (default: 0)
+    timeout => timeout(), % min delay between two measures (default: 0)
     seq => pos_integer() % initial sequence number (default: 1)
 }.
 
@@ -20,6 +20,7 @@
 -record(state, {
     name :: atom(),
     sync = false :: boolean(),
+    monitor :: {pid(), reference()} | undefined,
     timeout = 0 :: timeout(),
     seq = 1 :: pos_integer(),
     iter = 1 :: non_neg_integer() | infinity,
@@ -48,22 +49,43 @@ init({Mod, Args}) ->
     L1 = lists:map(fun({Key, Val}) -> maps:get(Key, Spec, Val) end, L0),
     State = list_to_tuple([state|L1]),
     Seq = init_seq(State#state.name, State#state.seq),
-    NewState = State#state{seq=Seq, mod=Mod, mod_state=ModState},
-    loop(NewState, State#state.sync).
+    case State#state.sync of
+        true ->
+            PidRef = subscribe(State#state.name),
+            NewState =
+                State#state{seq=Seq,mod=Mod,mod_state=ModState,monitor=PidRef},
+            loop(NewState, true);
+        false ->
+            NewState = State#state{seq=Seq,mod=Mod,mod_state=ModState},
+            loop(NewState, false)
+    end.
 
 
 loop(State, false) ->
-    NewState = measure(State),
-    case NewState of
-        #state{iter=0} ->
-            {stop, normal};
-        _ ->
-            timer:sleep(NewState#state.timeout),
-            loop(NewState, false)
-    end;
+    continue(measure(State));
+loop(State=#state{monitor={From,Ref}}, true) ->
+    receive
+        {authorized, From} ->
+            NewState = measure(State),
+            From ! {ok, self()},
+            continue(NewState);
+        {'DOWN', Ref, _, _, _} ->
+            PidRef = subscribe(State#state.name),
+            continue(State#state{monitor=PidRef})
+    end.
 
-loop(State, true) ->
-    exit("sync not supported yet").
+
+continue(#state{iter=0}) ->
+    {stop, normal};
+continue(State) ->
+    timer:sleep(State#state.timeout),
+    loop(State, State#state.sync).
+
+
+subscribe(Name) ->
+    {ok, Pid} = hera_sub:subscribe(Name),
+    Ref = monitor(process, Pid),
+    {Pid, Ref}.
 
 
 %% return Seq or the last known seq number (S0) + 1 if S0 > Seq
