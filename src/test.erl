@@ -10,9 +10,13 @@ init(_) ->
         iter => infinity,
         timeout => 1000
     },
-    {ok, 10, Spec}.
+    {ok, 2, Spec}.
 
 
-measure(State) ->
+measure(State) when State > 0 ->
     io:format("~p~n", [State]),
-    {ok, [0], State-1}.
+    {ok, [0], State-1};
+
+measure(0) ->
+    true = false,
+    {ok, [0], 0}.

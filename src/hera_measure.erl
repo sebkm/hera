@@ -1,9 +1,6 @@
 -module(hera_measure).
 
--behaviour(gen_server).
-
 -export([start_link/2]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -type measure_spec() :: #{
     name := atom(), % measure id
@@ -38,10 +35,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link(Module, Args) ->
-    gen_server:start_link(?MODULE, {Module, Args}, []).
+    Pid = spawn_link(fun() -> init({Module, Args}) end),
+    {ok, Pid}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Callbacks
+%% Internal functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Mod, Args}) ->
@@ -51,29 +49,22 @@ init({Mod, Args}) ->
     State = list_to_tuple([state|L1]),
     Seq = init_seq(State#state.name, State#state.seq),
     NewState = State#state{seq=Seq, mod=Mod, mod_state=ModState},
-    {ok, NewState, State#state.timeout}.
+    loop(NewState, State#state.sync).
 
 
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
-
-
-handle_cast(_Request, State) ->
-    {noreply, State}.
-
-
-handle_info(timeout, State) ->
+loop(State, false) ->
     NewState = measure(State),
     case NewState of
         #state{iter=0} ->
-            {stop, normal, NewState};
+            {stop, normal};
         _ ->
-            {noreply, NewState, NewState#state.timeout}
-    end.
+            timer:sleep(NewState#state.timeout),
+            loop(NewState, false)
+    end;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Internal functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+loop(State, true) ->
+    exit("sync not supported yet").
+
 
 %% return Seq or the last known seq number (S0) + 1 if S0 > Seq
 init_seq(Name, Seq) ->
