@@ -3,20 +3,18 @@
 -behaviour(gen_server).
 
 -export([start_link/0]).
--export([get/1, get/2, get/3]).
--export([store/3]).
--export([get_timestamp/0]).
+-export([get/1, get/2]).
+-export([store/4]).
 -export([init/1, handle_call/3, handle_cast/2]).
 
--type timestamp() :: integer() | undefined.
--type measure() :: {node(), pos_integer(), timestamp(), [number(), ...]}.
+-type measure() :: {node(), pos_integer(), hera:timestamp(), [number(), ...]}.
 
--export_type([timestamp/0, measure/0]).
+-export_type([measure/0]).
 
 -record(data, {
     seq = 0 :: non_neg_integer(),
     values :: [number(), ...] | undefined,
-    timestamp :: timestamp(),
+    timestamp :: hera:timestamp(),
     file :: file:io_device() | undefined
 }).
 
@@ -45,37 +43,17 @@ get(Name, Node) ->
     gen_server:call(?MODULE, {get, Name, Node}).
 
 
-%% get the data identified by Name and satisfying Filter
-%% eliminate multiple candidates using CmpFun according to ordering
-%% if CmpFun(A, B) then A is selected
--spec get(Name, Filter, CmpFun) -> {ok, Measure} | undefined when
-    Name :: atom(),
-    Filter :: fun( (M) -> boolean() ),
-    CmpFun :: fun( (M, M) -> boolean() ),
-    Measure :: M,
-    M :: measure().
-
-get(Name, Filter, CmpFun) ->
-    Candidates = lists:filter(Filter, hera_data:get(Name)),
-    case lists:sort(CmpFun, Candidates) of
-        [H|_] -> {ok, H};
-        [] -> undefined
-    end.
-
-
--spec store(Name, Node, Measure) -> ok when
+-spec store(Name, Node, Seq, Values) -> ok when
     Name :: atom(),
     Node :: node(),
-    Measure :: {pos_integer(), [number(), ...]}.
+    Seq :: pos_integer(),
+    Values :: [number(), ...].
 
-store(Name, Node, Measure) ->
-    gen_server:cast(?MODULE, {store, Name, Node, Measure}).
+store(Name, Node, Seq, Values) ->
+    gen_server:cast(?MODULE, {store, Name, Node, Seq, Values}).
 
 
--spec get_timestamp() -> timestamp().
 
-get_timestamp() ->
-  erlang:monotonic_time(millisecond).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Callbacks
@@ -106,16 +84,7 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 
-handle_cast({store, Name, Node, Measure}, State) ->
-    {noreply, store(Name, Node, Measure, State)};
-handle_cast(_Request, State) ->
-    {noreply, State}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Internal functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-store(Name, Node, {Seq1, Vals}, MapData) ->
+handle_cast({store, Name, Node, Seq1, L}, MapData) ->
     MapNode0 = maps:get(Name, MapData, #{}),
     IsLogger = application:get_env(hera, log_data, false),
     MapNode1 = if
@@ -130,14 +99,20 @@ store(Name, Node, {Seq1, Vals}, MapData) ->
     Data = maps:get(Node, MapNode1),
     MapNode2 = case Data of
         #data{seq=Seq0} when Seq0 < Seq1 ->
-            log_data(Data#data.file, {Seq1, Vals}, IsLogger),
-            NewData = Data#data{seq=Seq1,values=Vals,timestamp=get_timestamp()},
+            log_data(Data#data.file, {Seq1, L}, IsLogger),
+            NewData = Data#data{seq=Seq1,values=L,timestamp=hera:timestamp()},
             maps:put(Node, NewData, MapNode1);
         _ ->
             MapNode1
     end,
-    maps:put(Name, MapNode2, MapData).
+    {noreply, maps:put(Name, MapNode2, MapData)};
 
+handle_cast(_Request, State) ->
+    {noreply, State}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Internal functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 open_file(Name, Node) ->
     FileName = lists:append(

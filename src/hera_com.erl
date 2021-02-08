@@ -1,7 +1,7 @@
 -module(hera_com).
 
 -export([start_link/0]).
--export([send/2]).
+-export([send/3]).
 
 -define(MULTICAST_ADDR, {224,0,2,15}).
 -define(MULTICAST_PORT, 62476).
@@ -16,12 +16,13 @@ start_link() ->
     {ok, Pid}.
 
 
--spec send(Name, Measure) -> ok when
+-spec send(Name, Seq, Values) -> ok when
     Name :: atom(),
-    Measure :: {pos_integer(), [number(), ...]}.
+    Seq :: pos_integer(),
+    Values :: [number(), ...].
 
-send(Name, Measure) ->
-    Message = {hera_data, Name, node(), Measure},
+send(Name, Seq, Values) ->
+    Message = {hera_data, Name, node(), Seq, Values},
     try ?MODULE ! {send_packet, term_to_binary(Message)}
     catch
         error:_ -> ok
@@ -43,7 +44,7 @@ init() ->
         inet,
         {active, true},
         {multicast_if, OwnAddr},
-        {multicast_loop, true}, % TODO: set to false ?
+        {multicast_loop, true},
         {reuseaddr, true},
         {add_membership, {?MULTICAST_ADDR, OwnAddr}}
     ]),
@@ -55,8 +56,8 @@ loop(Socket) ->
         {udp, _Sock, _IP, _InPortNo, Packet} ->
             Message = binary_to_term(Packet),
             case Message of
-                {hera_data, Name, From, Measure} ->
-                    hera_data:store(Name, From, Measure);
+                {hera_data, Name, From, Seq, Values} ->
+                    hera_data:store(Name, From, Seq, Values);
                 _ ->
                     ok
             end;

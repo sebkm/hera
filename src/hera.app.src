@@ -2,13 +2,13 @@
  [{description, "A framework for dynamic measurements."},
   {vsn, "1.0.0"},
   {registered, [hera_data, hera_com, hera_measure_sup]},
-  {mod, {hera_app, []}},
+  {mod, {hera, []}},
   {applications,
    [kernel,
     stdlib
    ]},
   {env, [{log_data, true}]},
-  {modules, [hera_app, hera_sup, hera_data, hera_com,
+  {modules, [hera, hera_sup, hera_data, hera_com,
     hera_measure_sup, hera_measure]},
   {licenses, ["Apache 2.0"]},
   {links, []}
