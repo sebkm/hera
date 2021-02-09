@@ -88,10 +88,10 @@ subscribe(Name) ->
     {Pid, Ref}.
 
 
-%% return Seq or the last known seq number (S0) + 1 if S0 > Seq
+%% return Seq or the last known seq number (S0) + 1 if S0 >= Seq
 init_seq(Name, Seq) ->
     case hera_data:get(Name, node()) of
-        {ok, {_,Seq0, _, _}} when Seq0 > Seq ->
+        {ok, {_,Seq0, _, _}} when Seq0 >= Seq ->
             Seq0+1;
         _ ->
             Seq

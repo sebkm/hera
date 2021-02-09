@@ -52,9 +52,6 @@ get(Name, Node) ->
 store(Name, Node, Seq, Values) ->
     gen_server:cast(?MODULE, {store, Name, Node, Seq, Values}).
 
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Callbacks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -92,9 +89,9 @@ handle_cast({store, Name, Node, Seq1, L}, MapData) ->
             MapNode0;
         IsLogger ->
             File = open_file(Name, Node),
-            #{Node => #data{file=File}};
+            MapNode0#{Node => #data{file=File}};
         true ->
-            #{Node => #data{}}
+            MapNode0#{Node => #data{}}
     end,
     Data = maps:get(Node, MapNode1),
     MapNode2 = case Data of
