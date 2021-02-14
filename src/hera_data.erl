@@ -96,8 +96,9 @@ handle_cast({store, Name, Node, Seq1, L}, MapData) ->
     Data = maps:get(Node, MapNode1),
     MapNode2 = case Data of
         #data{seq=Seq0} when Seq0 < Seq1 ->
-            log_data(Data#data.file, {Seq1, L}, IsLogger),
-            NewData = Data#data{seq=Seq1,values=L,timestamp=hera:timestamp()},
+            T = hera:timestamp(),
+            log_data(Data#data.file, {Seq1, T, L}, IsLogger),
+            NewData = Data#data{seq=Seq1,values=L,timestamp=T},
             maps:put(Node, NewData, MapNode1);
         _ ->
             MapNode1
@@ -121,7 +122,7 @@ open_file(Name, Node) ->
 
 log_data(_, _, false) ->
     ok;
-log_data(File, {Seq, Ms}, true) ->
+log_data(File, {Seq, T, Ms}, true) ->
     Vals = lists:map(fun(V) -> lists:flatten(io_lib:format("~p", [V])) end, Ms),
     S = string:join(Vals, ","),
-    io:format(File, "~p,~s~n", [Seq, S]).
+    io:format(File, "~p,~p,~s~n", [Seq, T, S]).
