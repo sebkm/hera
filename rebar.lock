@@ -1,1 +1,4 @@
-[].
+[{<<"hera_synchronization">>,
+  {git,"https://github.com/sebkm/hera_synchronization",
+       {ref,"4b406b206061dd13c54efae3009226e20b37eb9d"}},
+  0}].

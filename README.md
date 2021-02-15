@@ -1,9 +1,12 @@
-hera
-=====
+hera 1.0.0 is a redesign of hera 0.1.0
 
-An OTP application
+Please, find the original repository here:
+https://github.com/guiste10/hera.
 
-Build
------
+hera_synchronization is an extension to hera. The orignial repository is:
+https://github.com/bastinjul/hera_synchronization. The new version (1.0.0) can
+be found at https://github.com/sebkm/hera_synchronization.
 
-    $ rebar3 compile
+The original design is explained in [Guillaume Neirinckx and Julien Bastin's master thesis](./master_thesis_Neirinckx_and_Bastin.pdf).
+
+The redesign is explained in [Hera_redesign.pdf](./Hera_redesign.pdf).
