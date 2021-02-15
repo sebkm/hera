@@ -6,7 +6,7 @@
     name := atom(), % measure id
     iter := pos_integer() | infinity, % number of measures to perform
     sync => boolean(), % must the measure must be synchronized? (default: false)
-    timeout => timeout(), % min delay between two measures (default: 0)
+    timeout => timeout(), % min delay between two measures (default: 1)
     seq => pos_integer() % initial sequence number (default: 1)
 }.
 
@@ -21,7 +21,7 @@
     name :: atom(),
     sync = false :: boolean(),
     monitor :: {pid(), reference()} | undefined,
-    timeout = 0 :: timeout(),
+    timeout = 1 :: timeout(),
     seq = 1 :: pos_integer(),
     iter = 1 :: non_neg_integer() | infinity,
     mod :: module(),
