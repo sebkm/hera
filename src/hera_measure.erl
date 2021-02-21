@@ -14,8 +14,11 @@
 
 -callback init(Args :: term()) ->
     {ok, State :: term(), Spec :: measure_spec()}.
+
 -callback measure(State :: term()) ->
-    {ok, Values :: [number(), ...], NewState :: term()} | undefined.
+    {ok, Values, NewState} | {undefined, NewState} when
+    Values :: [number(), ...],  
+    NewState :: term().
 
 -record(state, {
     name :: atom(),
@@ -100,8 +103,8 @@ init_seq(Name, Seq) ->
 
 measure(State=#state{name=N, mod=M, mod_state=MS, seq=Seq, iter=Iter}) ->
     case M:measure(MS) of
-        undefined ->
-            State;
+        {undefined, NewMS} ->
+            NewMS;
         {ok, Vals=[_|_], NewMS} ->
             hera_com:send(N, Seq, Vals),
             NewIter = case Iter of
