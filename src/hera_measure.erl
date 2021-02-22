@@ -104,7 +104,7 @@ init_seq(Name, Seq) ->
 measure(State=#state{name=N, mod=M, mod_state=MS, seq=Seq, iter=Iter}) ->
     case M:measure(MS) of
         {undefined, NewMS} ->
-            NewMS;
+            State#state{mod_state=NewMS};
         {ok, Vals=[_|_], NewMS} ->
             hera_com:send(N, Seq, Vals),
             NewIter = case Iter of
