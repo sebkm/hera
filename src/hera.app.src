@@ -7,7 +7,7 @@
    [kernel,
     stdlib
    ]},
-  {env, [{log_data, true}]},
+  {env, [{log_data, false}]},
   {modules, [hera, hera_sup, hera_data, hera_com,
     hera_measure_sup, hera_measure]},
   {licenses, ["Apache 2.0"]},

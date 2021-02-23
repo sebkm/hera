@@ -15,7 +15,7 @@
     seq = 0 :: non_neg_integer(),
     values :: [number(), ...] | undefined,
     timestamp :: hera:timestamp(),
-    file :: file:io_device() | undefined
+    file :: string() | undefined
 }).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,7 +88,7 @@ handle_cast({store, Name, Node, Seq1, L}, MapData) ->
         is_map_key(Node, MapNode0) ->
             MapNode0;
         IsLogger ->
-            File = open_file(Name, Node),
+            File = file_name(Name, Node),
             MapNode0#{Node => #data{file=File}};
         true ->
             MapNode0#{Node => #data{}}
@@ -112,12 +112,9 @@ handle_cast(_Request, State) ->
 %% Internal functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-open_file(Name, Node) ->
-    FileName = lists:append(
-        ["measures/", atom_to_list(Name), "_", atom_to_list(Node), ".csv"]),
-    ok = filelib:ensure_dir("measures/"),
-    {ok, File} = file:open(FileName, [append]),
-    File.
+file_name(Name, Node) ->
+    lists:append(
+        ["measures/", atom_to_list(Name), "_", atom_to_list(Node), ".csv"]).
 
 
 log_data(_, _, false) ->
@@ -125,4 +122,6 @@ log_data(_, _, false) ->
 log_data(File, {Seq, T, Ms}, true) ->
     Vals = lists:map(fun(V) -> lists:flatten(io_lib:format("~p", [V])) end, Ms),
     S = string:join(Vals, ","),
-    io:format(File, "~p,~p,~s~n", [Seq, T, S]).
+    Bytes = io_lib:format("~p,~p,~s~n", [Seq, T, S]),
+    ok = filelib:ensure_dir("measures/"),
+    ok = file:write_file(File, Bytes, [append]).
