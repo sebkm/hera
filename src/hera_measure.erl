@@ -6,8 +6,7 @@
     name := atom(), % measure id
     iter := pos_integer() | infinity, % number of measures to perform
     sync => boolean(), % must the measure must be synchronized? (default: false)
-    timeout => timeout(), % min delay between two measures (default: 1)
-    seq => pos_integer() % initial sequence number (default: 1)
+    timeout => timeout() % min delay between two measures (default: 1)
 }.
 
 -export_type([measure_spec/0]).
@@ -51,7 +50,7 @@ init({Mod, Args}) ->
     L0 = ?record_to_tuplelist(state, #state{}),
     L1 = lists:map(fun({Key, Val}) -> maps:get(Key, Spec, Val) end, L0),
     State = list_to_tuple([state|L1]),
-    Seq = init_seq(State#state.name, State#state.seq),
+    Seq = init_seq(State#state.name),
     case State#state.sync of
         true ->
             PidRef = subscribe(State#state.name),
@@ -91,14 +90,16 @@ subscribe(Name) ->
     {Pid, Ref}.
 
 
-%% return Seq or the last known seq number (S0) + 1 if S0 >= Seq
-init_seq(Name, Seq) ->
-    case hera_data:get(Name, node()) of
-        {ok, {_,Seq0, _, _}} when Seq0 >= Seq ->
-            Seq0+1;
-        _ ->
-            Seq
-    end.
+%% return 1 or 1 + the last seq number known among all nodes
+init_seq(Name) ->
+    {ResL, _} = rpc:multicall(hera_data, get, [Name, node()]),
+    L = lists:filtermap(fun(Res) ->
+        case Res of
+            {ok, {_,Seq,_,_}} -> {true, Seq};
+            _ -> false
+        end
+    end, ResL),
+    lists:max([0|L]) + 1.
 
 
 measure(State=#state{name=N, mod=M, mod_state=MS, seq=Seq, iter=Iter}) ->

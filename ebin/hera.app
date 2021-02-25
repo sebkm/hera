@@ -1,0 +1,11 @@
+{application,hera,
+             [{description,"A framework for dynamic measurements."},
+              {vsn,"1.0.0"},
+              {registered,[hera_data,hera_com,hera_measure_sup]},
+              {mod,{hera,[]}},
+              {applications,[kernel,stdlib]},
+              {env,[{log_data,false}]},
+              {modules,[hera,hera_com,hera_data,hera_measure,hera_measure_sup,
+                        hera_sup]},
+              {licenses,["Apache 2.0"]},
+              {links,[]}]}.
