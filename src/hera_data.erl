@@ -34,7 +34,7 @@ get(Name) ->
     gen_server:call(?MODULE, {get, Name}).
 
 
--spec get(Name, Node) -> {ok, Measure} | undefined when 
+-spec get(Name, Node) -> [Measure] when 
     Name :: atom(),
     Node :: node(),
     Measure :: measure().
@@ -71,9 +71,9 @@ handle_call({get, Name, Node}, _From, MapData) ->
     Res = if
         is_map_key(Node, MapMeasure) ->
             #data{seq=S,values=V,timestamp=T} = maps:get(Node, MapMeasure),
-            {ok, {Node,S,T,V}};
+            [{Node,S,T,V}];
         true ->
-            undefined
+            []
     end,
     {reply, Res, MapData};
 
