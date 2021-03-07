@@ -95,7 +95,7 @@ init_seq(Name) ->
     {ResL, _} = rpc:multicall(hera_data, get, [Name, node()]),
     L = lists:filtermap(fun(Res) ->
         case Res of
-            {ok, {_,Seq,_,_}} -> {true, Seq};
+            [{_,Seq,_,_}] -> {true, Seq};
             _ -> false
         end
     end, ResL),
