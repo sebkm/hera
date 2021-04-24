@@ -6,6 +6,6 @@
               {applications,[kernel,stdlib]},
               {env,[{log_data,false}]},
               {modules,[hera,hera_com,hera_data,hera_measure,hera_measure_sup,
-                        hera_sup]},
+                        hera_sup,kalman,mat]},
               {licenses,["Apache 2.0"]},
               {links,[]}]}.

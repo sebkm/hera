@@ -9,7 +9,8 @@
    ]},
   {env, [{log_data, false}]},
   {modules, [hera, hera_sup, hera_data, hera_com,
-    hera_measure_sup, hera_measure]},
+    hera_measure_sup, hera_measure,
+    kalman, mat]},
   {licenses, ["Apache 2.0"]},
   {links, []}
  ]}.
