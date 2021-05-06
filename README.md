@@ -8,5 +8,3 @@ https://github.com/bastinjul/hera_synchronization. The new version (1.0.0) can
 be found at https://github.com/sebkm/hera_synchronization.
 
 The original design is explained in [Guillaume Neirinckx and Julien Bastin's master thesis](./master_thesis_Neirinckx_and_Bastin.pdf).
-
-The redesign is explained in [Hera_redesign.pdf](./Hera_redesign.pdf).
